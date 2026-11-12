@@ -73,13 +73,13 @@ nav button.on{color:var(--ac);box-shadow:inset 0 3px 0 var(--ac)}
 <main id="app"></main>
 <nav id="nav"></nav>
 <script>
-const PR={mini:2000,pote:4000,p2:7000,p3:10000},NEED={mini:1,pote:1,p2:2,p3:3};
+const DEF={mini:2000,pote:4000,p2:7000,p3:10000},PR=Object.assign({},DEF),NEED={mini:1,pote:1,p2:2,p3:3};
 const NM={mini:'Minipote',pote:'Pote normal',p2:'Promo 2 potes',p3:'Promo 3 potes'};
 const CO={mini:'#d6247a',pote:'#e0600a',p2:'#7c3aed',p3:'#0d8478'};
 const PAL=['#e11d48','#ea580c','#d97706','#ca8a04','#65a30d','#16a34a','#0d9488','#0891b2','#2563eb','#4f46e5','#7c3aed','#c026d3','#db2777','#78350f','#475569'];
 let S={days:{}},tab='vender',P=null,HS=null,CP=null,DEL='',MSG='',RT=false;
 try{S=JSON.parse(localStorage.getItem('postres')||'')||S}catch(e){}
-S.days=S.days||{};S.colors=S.colors||{};
+S.days=S.days||{};S.colors=S.colors||{};S.prices=S.prices||{};Object.assign(PR,S.prices);
 const save=()=>{try{localStorage.setItem('postres',JSON.stringify(S))}catch(e){}};
 const key=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const get=k=>S.days[k]||{flavors:[],sales:[]};
@@ -88,10 +88,10 @@ const money=n=>'$'+n.toLocaleString('es-AR');
 const col=n=>PAL[S.colors[n]!=null?S.colors[n]:[...n].reduce((a,c)=>a+c.charCodeAt(0),0)%PAL.length];
 const fecha=k=>{const[y,m,d]=k.split('-');const s=new Date(y,m-1,d).toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});return s[0].toUpperCase()+s.slice(1)};
 function h(t,a,...k){const e=document.createElement(t);for(const x in a||{}){if(x==='on')for(const v in a.on)e.addEventListener(v,a.on[v]);else if(x==='style')e.style.cssText=a[x];else if(x==='class')e.className=a[x];else e[x]=a[x]}k.flat(9).filter(c=>c!=null&&c!==false).forEach(c=>e.append(c));return e}
-function stats(sales){const f={},c={mini:0,pote:0,p2:0,p3:0};let total=0;
-sales.forEach(s=>{total+=PR[s.t];c[s.t]++;s.i.forEach(n=>{if(!n)return;const o=f[n]||(f[n]={mini:0,pote:0});o[s.t==='mini'?'mini':'pote']++})});return{f,c,total}}
+function stats(sales){const f={},c={mini:0,pote:0,p2:0,p3:0},m={mini:0,pote:0,p2:0,p3:0};let total=0;
+sales.forEach(s=>{const p=s.p!=null?s.p:DEF[s.t];total+=p;m[s.t]+=p;c[s.t]++;s.i.forEach(n=>{if(!n)return;const o=f[n]||(f[n]={mini:0,pote:0});o[s.t==='mini'?'mini':'pote']++})});return{f,c,m,total}}
 const buzz=()=>{try{navigator.vibrate&&navigator.vibrate(25)}catch(e){}};
-function commit(t,items){ens().sales.push({t,i:items,at:Date.now()});save();buzz()}
+function commit(t,items){ens().sales.push({t,i:items,at:Date.now(),p:PR[t]});save();buzz()}
 function start(t){if(!get(key()).flavors.length){commit(t,[]);render();return}P={t,picked:[]};render()}
 function pick(n){P.picked.push(n);if(P.picked.length===NEED[P.t]){commit(P.t,P.picked);P=null}else buzz();render()}
 function undo(){const d=ens();d.sales.pop();save();render()}
@@ -100,7 +100,7 @@ function vender(){const d=get(key()),st=stats(d.sales);
 return h('div',{},
 h('div',{class:'hero'},h('div',{class:'date'},fecha(key())),h('div',{class:'total'},money(st.total)),h('div',{class:'sub'},d.sales.length+' ventas hoy')),
 h('div',{class:'grid'},['mini','pote','p2','p3'].map(t=>h('button',{class:'sale',style:'background:'+CO[t],on:{click:()=>start(t)}},
-h('span',{class:'nm'},NM[t]),h('span',{class:'pr'},money(PR[t])),h('span',{class:'ct'},String(st.c[t])),h('span',{class:'subt'},money(st.c[t]*PR[t]))))),
+h('span',{class:'nm'},NM[t]),h('span',{class:'pr'},money(PR[t])),h('span',{class:'ct'},String(st.c[t])),h('span',{class:'subt'},money(st.m[t]))))),
 d.flavors.length?null:h('p',{class:'hint'},'Aún no cargaste sabores de hoy. Ve a la pestaña Sabores para agregarlos y registrar cuál se vende más.'),
 h('button',{class:'undo',disabled:!d.sales.length,on:{click:undo}},'Deshacer última venta'))}
 
@@ -132,12 +132,12 @@ return h('div',{},h('h2',{},label),arr.length?arr.map(([n,v])=>h('div',{class:'r
 function dayDetail(k){const d=S.days[k]||{flavors:[],sales:[]},st=stats(d.sales);
 return h('div',{},h('button',{class:'back',on:{click:()=>{HS=null;render()}}},'‹ Volver al historial'),
 h('div',{class:'hero'},h('div',{class:'date'},fecha(k)),h('div',{class:'total'},money(st.total)),h('div',{class:'sub'},d.sales.length+' ventas')),
-d.sales.length?[h('div',{class:'grid'},['mini','pote','p2','p3'].map(t=>h('div',{class:'sale',style:'background:'+CO[t]+';min-height:112px'},h('span',{class:'nm'},NM[t]),h('span',{class:'ct',style:'font-size:44px'},String(st.c[t])),h('span',{class:'subt'},money(st.c[t]*PR[t]))))),
+d.sales.length?[h('div',{class:'grid'},['mini','pote','p2','p3'].map(t=>h('div',{class:'sale',style:'background:'+CO[t]+';min-height:112px'},h('span',{class:'nm'},NM[t]),h('span',{class:'ct',style:'font-size:44px'},String(st.c[t])),h('span',{class:'subt'},money(st.m[t]))))),
 h('h2',{style:'margin-top:16px'},'Por sabor'),
 Object.keys(st.f).length?Object.entries(st.f).map(([n,o])=>h('div',{class:'row'},h('span',{class:'dot',style:'background:'+col(n)}),h('span',{class:'n'},n),h('span',{class:'pill',style:'background:'+CO.mini},'Mini '+o.mini),h('span',{class:'pill',style:'background:'+CO.pote},'Pote '+o.pote))):h('p',{class:'note'},'Ventas sin sabor asignado.'),
 h('h2',{style:'margin-top:16px'},'Ventas del día'),
 d.sales.map((s,i)=>{const id=k+':'+i;return h('div',{class:'row'},h('span',{class:'n'},NM[s.t]+(s.i.length?': '+s.i.join(', '):'')),
-h('span',{class:'sub'},(s.at?new Date(s.at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+' · ':'')+money(PR[s.t])),
+h('span',{class:'sub'},(s.at?new Date(s.at).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})+' · ':'')+money(s.p!=null?s.p:DEF[s.t])),
 h('button',{class:'x'+(DEL===id?' red':''),on:{click:()=>{if(DEL===id){S.days[k].sales.splice(i,1);DEL='';save()}else DEL=id;render()}}},DEL===id?'¿Borrar?':'×'))}).reverse()]
 :h('p',{class:'hint'},'No hay ventas registradas este día.'))}
 
@@ -147,9 +147,16 @@ if(dl){try{await dl.save({filename:'copia-postres-'+key()+'.json',data:txt});ret
 try{const sh=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.Share;
 if(sh){await sh.share({title:'Copia de Contador de postres',text:txt,dialogTitle:'Guardar copia'});return say('Listo. Guarda ese mensaje (por ejemplo en WhatsApp o Drive).')}}catch(e){return say('No se guardó la copia.')}
 try{await navigator.clipboard.writeText(txt);say('Copia lista en el portapapeles. Pégala en una nota para guardarla.')}catch(e){say('No se pudo guardar la copia.')}}
-function aplicar(t){try{const b=JSON.parse(t);Object.entries(b.days||{}).forEach(([k,v])=>{if(!S.days[k]||v.sales.length>S.days[k].sales.length)S.days[k]=v});S.colors=Object.assign({},b.colors,S.colors);save();RT=false;say('Copia restaurada.')}catch(e){say('Esa copia no es válida.')}}
+function aplicar(t){try{const b=JSON.parse(t);Object.entries(b.days||{}).forEach(([k,v])=>{if(!S.days[k]||v.sales.length>S.days[k].sales.length)S.days[k]=v});S.colors=Object.assign({},b.colors,S.colors);if(b.prices&&!Object.keys(S.prices).length){S.prices=b.prices;Object.assign(PR,b.prices)}save();RT=false;say('Copia restaurada.')}catch(e){say('Esa copia no es válida.')}}
 function importar(f){const r=new FileReader();r.onload=()=>aplicar(r.result);r.readAsText(f)}
 function say(m){MSG=m;render()}
+
+function precios(){const ins={};
+return h('div',{},h('h2',{},'Precios'),h('div',{class:'note'},'Los cambios valen para las ventas nuevas. Las ventas anteriores conservan el precio con el que se hicieron.'),
+['mini','pote','p2','p3'].map(t=>{ins[t]=h('input',{type:'number',inputMode:'numeric',min:0,step:100,value:PR[t],class:'di',style:'width:130px;text-align:right'});
+return h('div',{class:'row'},h('span',{class:'dot',style:'background:'+CO[t]}),h('span',{class:'n'},NM[t]),h('span',{},'$'),ins[t])}),
+h('button',{class:'undo',style:'background:var(--ac);color:#fff;border:0',on:{click:()=>{const n={};for(const t in ins){const v=Math.round(Number(ins[t].value));if(ins[t].value===''||!(v>=0))return say('Revisa que todos los precios sean números.');n[t]=v}Object.assign(PR,n);S.prices=n;save();say('Precios guardados.')}}},'Guardar precios'),
+MSG?h('p',{class:'note'},MSG):null)}
 
 function historial(){if(HS)return dayDetail(HS);
 const ks=Object.keys(S.days).filter(k=>S.days[k].sales.length).sort().reverse();
@@ -172,8 +179,8 @@ h('h3',{},'Color de '+CP),h('div',{class:'sub'},'Elige uno de los 15 colores'),
 h('div',{class:'sw'},PAL.map((c,i)=>h('button',{class:col(CP)===c?'on':'',style:'background:'+c,on:{click:()=>{S.colors[CP]=i;save();CP=null;render()}}}))),
 h('button',{class:'cancel',on:{click:()=>{CP=null;render()}}},'Cerrar')))}
 
-function render(){const app=document.getElementById('app');app.replaceChildren(...[tab==='vender'?vender():tab==='sabores'?sabores():historial(),P?sheet():null,CP?colorSheet():null].filter(Boolean));
-const nav=document.getElementById('nav');nav.replaceChildren(...[['vender','Vender'],['sabores','Sabores'],['historial','Historial']].map(([t,l])=>h('button',{class:tab===t?'on':'',on:{click:()=>{tab=t;P=null;CP=null;HS=null;MSG='';render()}}},l)))}
+function render(){const app=document.getElementById('app');app.replaceChildren(...[tab==='vender'?vender():tab==='sabores'?sabores():tab==='precios'?precios():historial(),P?sheet():null,CP?colorSheet():null].filter(Boolean));
+const nav=document.getElementById('nav');nav.replaceChildren(...[['vender','Vender'],['sabores','Sabores'],['historial','Historial'],['precios','Precios']].map(([t,l])=>h('button',{class:tab===t?'on':'',on:{click:()=>{tab=t;P=null;CP=null;HS=null;MSG='';render()}}},l)))}
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)render()});
 try{const ic="data:image/svg+xml,"+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="#7c3aed"/><text x="256" y="350" font-size="300" text-anchor="middle">🍨</text></svg>');
 const m={name:'Contador de postres',short_name:'Postres',start_url:location.href,scope:location.href,display:'standalone',background_color:'#7c3aed',theme_color:'#7c3aed',icons:[{src:ic,sizes:'any',type:'image/svg+xml',purpose:'any'}]};
